@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% macro gpuline(gpu,host) -%}
+<td>
+  <pre>{{gpu['name']}}</pre>
+</td>
+<td>
+  <pre>{{ "%3d" % gpu["utilization"] }}%</pre>
+</td>
+<td>
+  <pre>{{ "%3d" % gpu["temp"] }}&#176;C</pre>
+</td>
+<td>
+  <pre>{{ "%3d" % gpu["fanspeed"] }}%</pre>
+</td>
+<td>
+
+  <style>
+    .container {
+
+      width: 300px;
+
+      height: 30px;
+
+
+
+      border-radius: 20px;
+
+    }
+
+
+
+    .skills {
+
+      line-height: 30px;
+
+      color: white;
+
+      border-radius: 20px;
+
+      text-align: center;
+
+      width: 70%;
+
+      background-color: #4CAF50;
+
+    }
+  </style>
+  <div style="width:100%;height:100%;background-color: #ddd;border-radius: 20px;">
+    <div
+      style="color: white;height:100%; border-radius: 20px; text-align: center; background-color: #4CAF50; width: {{'%.0f' % (gpu['mem_used'] / (gpu['mem_total']+1) * 100)}}%;">
+      &nbsp;</div>
+    <div style="float: left">{{ '%7.0f /%7.0f MiB (%5.2f%%)' %(gpu["mem_used"] / 2**20, gpu["mem_total"] / 2**20,
+      gpu["mem_used"] / (gpu["mem_total"]+1) * 100) }}</div>
+  </div>
+</td>
+<td>
+  {% for p in gpu["procs"] %}
+  {{ p["username"] }}({{'%.0f' % (p["mem"] / 2**20)}}MiB)&nbsp;
+  {% endfor %}
+</td>
+<td>
+  <div class="dataview" dataset="{{ host }}_{{ gpu['id'] }}"></div>
+</td>
+{%- endmacro %}
+{% macro showone(k,v) -%}
+<div class="panel {% if v['ip'] %}panel-success{% else %}panel-danger{% endif %}">
+  <div class="panel-heading">
+    <h1 class="panel-title">
+      <b>{{k}}</b> (IP: {{ v["ip"] }})
+    </h1>
+  </div>
+  <!-- <div class="panel-body">
+    <p>
+      
+      {{v["err"]}}
+    </p>
+  </div> -->
+  <table class="table">
+    <tr>
+      <th class="col-md-2">名称</th>
+      <th class="col-md-1">使用率</th>
+      <th class="col-md-1">温度</th>
+      <th class="col-md-1">风扇</th>
+      <th class="col-md-2">显存占用</th>
+      <th class="col-md-2">进程情况</th>
+      <th class="col-md-4">历史占用情况</th>
+    </tr>
+    {% for gpu in v["gpus"] %}
+    <tr>
+      {{ gpuline(gpu, v["id"]) }}
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{%- endmacro %}
+{% block title %}All Hosts{% endblock %}
+{% block content %}
+<div class="col-md-10">
+  {% for k,v in servers.items() %}
+  {{ showone(k, v) }}
+  {% endfor %}
+</div>
+<!-- <div id="main" class="col-md-3" style="height: 400px;"></div> -->
+<script>
+  function buildOpt(dateList, valueList) {
+    var option;
+    // prettier-ignore
+
+    option = {
+      // Make gradient line here
+      visualMap: [
+        {
+          show: false,
+          type: 'continuous',
+          seriesIndex: 0,
+          min: 0,
+          max: 400
+        }
+      ],
+      title: [{}],
+      tooltip: {
+        trigger: 'axis'
+      },
+      xAxis: [
+        {
+          data: dateList,
+          show: false, boundaryGap: false,
+          //type:'time',
+        }
+      ],
+      yAxis: [
+        { show: false, boundaryGap: false, min: 0.0, max: 1.0 },
+      ],
+      grid: [{ borderWidth: '0' }],
+      series: [
+        {
+          type: 'line',
+          showSymbol: false,
+          data: valueList,
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              {
+                offset: 0,
+                color: 'rgb(255, 158, 68)'
+              }
+            ])
+          },
+        }
+      ]
+    };
+
+    return option;
+  }
+  function timeFomat(t, e) {
+    var s = t ? new Date(t) : new Date(1e3 * t)
+      , i = s.getFullYear()
+      , n = s.getMonth() + 1
+      , a = s.getDate()
+      , o = s.getHours()
+      , l = s.getMinutes()
+      , u = s.getSeconds();
+    switch (e) {
+      case "ss":
+        return u;
+      case "mm:ss":
+        return l + ":" + u;
+      case "HH:mm:ss":
+        return o + ":" + l + ":" + u;
+      case "dd":
+        return a;
+      case "dd HH":
+        return a + " " + o;
+      case "dd HH:mm":
+        return a + " " + o + ":" + l;
+      case "dd HH:mm:ss":
+        return a + " " + o + ":" + l + ":" + u;
+      case "MM":
+        return n;
+      case "MM-dd":
+        return n + "-" + a;
+      case "MM-dd HH":
+        return n + "-" + a + " " + o;
+      case "MM-dd HH:mm":
+        return n + "-" + a + " " + o + ":" + l;
+      case "MM-dd HH:mm:ss":
+        return n + "-" + a + " " + o + ":" + l + ":" + u;
+      case "yyyy":
+        return i;
+      case "yyyy-MM":
+        return i + "-" + n;
+      case "yyyy-MM-dd":
+        return i + "-" + n + "-" + a;
+      case "yyyy-MM-dd HH":
+        return i + "-" + n + "-" + a + " " + o;
+      case "yyyy-MM-dd HH:mm":
+        return i + "-" + n + "-" + a + " " + o + ":" + l;
+      case "year":
+      case "yyyy-MM-dd HH:mm:ss":
+      default:
+        return i + "-" + n + "-" + a + " " + o + ":" + l + ":" + u
+    }
+  }
+
+
+  function s2b(str) {
+    var ch, st, re = [];
+    for (var i = 0; i < str.length; i++) {
+      ch = str.charCodeAt(i);  // get char  
+      st = [];                 // set up "stack"  
+
+      do {
+        st.push(ch & 0xFF);  // push byte to stack  
+        ch = ch >> 8;          // shift value down by 1 byte  
+      }
+
+      while (ch);
+      // add stack contents to result  
+      // done because chars have "wrong" endianness  
+      re = re.concat(st.reverse());
+    }
+    // return an array of bytes  
+    return re;
+  }
+
+  $(document).ready(
+    async () => {
+      var allData = await $.ajax("/pk");
+      rawObj = proto.gpu.HistMap.deserializeBinary(allData);
+      window.rawObj = rawObj;
+      allData = rawObj.getDataMap();
+      window.allData = allData;
+      $('div.dataview').each(async function (i, d) {
+        var myChart = echarts.init(d);
+
+        const data = allData.get(d.getAttribute("dataset"));
+
+        if (data) {
+          const dateList = data.getTList().map((t) => { return timeFomat(t / 1e6, "yyyy-MM-dd HH:mm:ss");})
+          const valueList = data.getVList().map((v)=>{return v / 10000});
+          myChart.setOption(buildOpt(dateList, valueList));
+        }
+      });
+    });
+
+
+</script>
+{% endblock %}
+{% block head %}
+<script src="./static/jquery.min.js"></script>
+<!-- 最新版本的 Bootstrap 核心 CSS 文件 -->
+<link rel="stylesheet" href="./static/bootstrap.min.css">
+<!-- 可选的 Bootstrap 主题文件（一般不用引入） -->
+<link rel="stylesheet" href="./static/bootstrap-theme.min.css">
+<!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+<script src="./static/bootstrap.min.js"></script>
+<script src="./static/echarts.min.js"></script>
+
+<script src="./static/google-protobuf.js"></script>
+<script src="./static/histresp.js"></script>
+<script src="./static/histmap.js"></script>
+<style>
+  .dataview {
+    height: 80px;
+    width: 100%;
+  }
+</style>
+{% endblock %}

@@ -1,0 +1,16 @@
+*
+
+
+!.gitignore
+!README.md
+
+!src
+!src/main.go
+!src/go.mod
+!src/main.py
+!src/Makefile
+!src/hm.proto
+
+!src/templates
+!src/templates/*
+
