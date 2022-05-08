@@ -49,3 +49,80 @@ servers = {"local": "127.0.0.1:9203"}
 # 效果
 
 ![截图](snapshot.png)
+
+
+# protobuf
+
+- 下面是具体的protobuf定义
+
+- 目前GPU相关信息采集已经实现
+
+- DISK相关信息待开发
+
+```protobuf
+syntax = "proto3";
+package gpu;
+option go_package=".";
+message ProcInfo {
+    uint32 pid = 1;
+    int32 uid = 2;
+    string username = 3;
+    string basename = 4;
+    uint64 expiration = 5;
+    int32 utilization = 6;
+    uint64 mem = 7;
+}
+message GPUInfo{
+    int32 id = 1;
+    uint64 mem_used = 2;
+    uint64 mem_total = 3;
+    int32 utilization = 4;
+    uint32 temp = 5;
+    string name = 6;
+    uint32 fanspeed = 7;
+    repeated ProcInfo procs = 8;
+}
+message DiskInfo {
+    string device = 1;
+    uint64 used = 2;
+    uint64 total = 3;
+    string mount = 4;
+}
+message HostInfo {
+    string id = 1;
+    repeated GPUInfo gpus = 2;
+    repeated DiskInfo disks = 3;
+    string ip = 4;
+    string hostname = 5;
+    string err = 6;
+}
+
+
+message RequestInfo {
+    string token = 1; // reserved
+    string reqtype = 2; 
+}
+
+service HostMonitor {
+    rpc GetInfo (RequestInfo) returns (HostInfo) {}
+}
+
+message HistReq{
+    string id = 1;
+    uint64 timestamp = 2;
+    string type = 3;
+}
+
+message HistResp{
+    repeated uint64 t = 1;
+    repeated uint64 v = 2;
+}
+
+message HistMap{
+    map<string, HistResp> data = 1;
+}
+
+service History {
+    rpc GetHistory (HistReq) returns (HistResp) {}
+}
+```
