@@ -3,6 +3,8 @@
 
 !.gitignore
 !README.md
+!snapshot.png
+
 
 !src
 !src/main.go
@@ -13,4 +15,6 @@
 
 !src/templates
 !src/templates/*
+
+
 
