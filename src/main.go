@@ -11,10 +11,12 @@ compile:
 */
 import (
 	context "context"
+	"encoding/csv"
 	"log"
 	"net"
 	"os"
 	"strings"
+	"syscall"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/shirou/gopsutil/process"
@@ -30,6 +32,8 @@ func (s *server) GetInfo(ctx context.Context, in *RequestInfo) (*HostInfo, error
 			hostInfo.Gpus[i] = getDevice(dev)
 		}
 	}
+
+	UpdateDiskInfo()
 	return &hostInfo, nil
 }
 
@@ -73,6 +77,7 @@ var Allowed *net.IPNet
 var err error
 
 func main() {
+	// 初始化，读取环境变量
 	allowedIP := os.Getenv("GOHM_ALLOW")
 	if allowedIP == "" {
 		allowedIP = "127.0.0.1/32"
@@ -83,10 +88,12 @@ func main() {
 	}
 	log.Printf("Allowed IP: %s\n", Allowed.String())
 
+	// 处理本机IP信息
 	if err := localIP(); err != nil {
 		log.Fatalln(err)
 	}
 
+	// 处理显卡相关信息
 	ret := nvml.Init()
 	if ret != nvml.SUCCESS {
 		log.Printf("Unable to initialize NVML: %v\n", nvml.ErrorString(ret))
@@ -116,9 +123,9 @@ func main() {
 				}
 			}
 		}
-
 	}
 
+	// 启动服务器
 	listen_addr := os.Getenv("GOHM_ADDR")
 	if listen_addr == "" {
 		listen_addr = "0.0.0.0:9203"
@@ -187,4 +194,69 @@ func (lc ListenerWithAC) Close() error {
 
 func (lc ListenerWithAC) Addr() net.Addr {
 	return lc.Lc.Addr()
+}
+
+type DiskStatus struct {
+	All   uint64 `json:"all"`
+	Used  uint64 `json:"used"`
+	Free  uint64 `json:"free"`
+	Dev   string `json:"device"`
+	Mount string `json:"mount"`
+	Type  string `json:"type"`
+}
+
+// disk usage of path/disk
+func DiskUsage(disk *DiskStatus) {
+	fs := syscall.Statfs_t{}
+	err := syscall.Statfs(disk.Mount, &fs)
+	if err != nil {
+		return
+	}
+	disk.All = fs.Blocks * uint64(fs.Bsize)
+	disk.Free = fs.Bfree * uint64(fs.Bsize)
+	disk.Used = disk.All - disk.Free
+}
+
+func ParseMounts() ([]DiskStatus, error) {
+	ret := make([]DiskStatus, 0)
+	f, err := os.Open("/proc/mounts")
+	if err != nil {
+		return ret, err
+	}
+	reader := csv.NewReader(f)
+	reader.Comma = ' '
+	rec, err := reader.ReadAll()
+	if err != nil {
+		return ret, err
+	}
+	for _, line := range rec {
+		if strings.HasPrefix(line[2], "ext") {
+			st := DiskStatus{
+				Dev:   line[0],
+				Mount: line[1],
+				Type:  line[2],
+			}
+			DiskUsage(&st)
+			ret = append(ret, st)
+		}
+	}
+	return ret, nil
+}
+
+func UpdateDiskInfo() {
+	disks, err := ParseMounts()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	hostInfo.Disks = make([]*DiskInfo, 0)
+	for _, d := range disks {
+		hostInfo.Disks = append(hostInfo.Disks, &DiskInfo{
+			Device: d.Dev,
+			Mount:  d.Mount,
+			Total:  d.All,
+			Used:   d.Used,
+		})
+	}
 }

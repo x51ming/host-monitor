@@ -39,7 +39,9 @@ servers = {"local": "127.0.0.1:9203"}
 
 # 原理
 
-- 监控部分：NVML(NVIDIA Management Library) + golang
+- 显卡监控部分：`NVML(NVIDIA Management Library)`
+
+- 硬盘监控部分：读取`/proc/mounts`，获取所有挂载类型为`ext?`的挂载点，获得其容量和占用信息
 
 - 主机间通信部分：protobuf + gRPC
 
@@ -54,10 +56,6 @@ servers = {"local": "127.0.0.1:9203"}
 # protobuf
 
 - 下面是具体的protobuf定义
-
-- 目前GPU相关信息采集已经实现
-
-- DISK相关信息待开发
 
 ```protobuf
 syntax = "proto3";

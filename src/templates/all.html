@@ -13,38 +13,6 @@
   <pre>{{ "%3d" % gpu["fanspeed"] }}%</pre>
 </td>
 <td>
-
-  <style>
-    .container {
-
-      width: 300px;
-
-      height: 30px;
-
-
-
-      border-radius: 20px;
-
-    }
-
-
-
-    .skills {
-
-      line-height: 30px;
-
-      color: white;
-
-      border-radius: 20px;
-
-      text-align: center;
-
-      width: 70%;
-
-      background-color: #4CAF50;
-
-    }
-  </style>
   <div style="width:100%;height:100%;background-color: #ddd;border-radius: 20px;">
     <div
       style="color: white;height:100%; border-radius: 20px; text-align: center; background-color: #4CAF50; width: {{'%.0f' % (gpu['mem_used'] / (gpu['mem_total']+1) * 100)}}%;">
@@ -69,12 +37,19 @@
       <b>{{k}}</b> (IP: {{ v["ip"] }})
     </h1>
   </div>
-  <!-- <div class="panel-body">
-    <p>
-      
-      {{v["err"]}}
-    </p>
-  </div> -->
+  <div class="panel-body">
+    {% for disk in v['disks']%}
+    <div style="width:525px;height:8px;margin-bottom:3em; background-color: #ddd;border-radius: 4px;">
+      <div
+        style="color: white;height:100%; border-radius: 4px; text-align: center; background-color: #4CAF50; width: {{'%.4f' % (disk['used'] / (disk['total']+1) * 100)}}%;">
+        &nbsp;</div>
+      <div style="float: left">
+        <pre>{{ '%15s @ %-15s %7.1f /%7.1f GiB (%5.2f%%)' %(disk['device'],disk['mount'],disk['used'] / 2**30, disk['total'] / 2**30,
+            disk['used'] / (disk['total']+1) * 100) }}</pre>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
   <table class="table">
     <tr>
       <th class="col-md-2">名称</th>
@@ -235,8 +210,8 @@
         const data = allData.get(d.getAttribute("dataset"));
 
         if (data) {
-          const dateList = data.getTList().map((t) => { return timeFomat(t / 1e6, "yyyy-MM-dd HH:mm:ss");})
-          const valueList = data.getVList().map((v)=>{return v / 10000});
+          const dateList = data.getTList().map((t) => { return timeFomat(t / 1e6, "yyyy-MM-dd HH:mm:ss"); })
+          const valueList = data.getVList().map((v) => { return v / 10000 });
           myChart.setOption(buildOpt(dateList, valueList));
         }
       });
@@ -262,6 +237,21 @@
   .dataview {
     height: 80px;
     width: 100%;
+  }
+
+  .container {
+    width: 300px;
+    height: 30px;
+    border-radius: 20px;
+  }
+
+  .skills {
+    line-height: 30px;
+    color: white;
+    border-radius: 20px;
+    text-align: center;
+    width: 70%;
+    background-color: #4CAF50;
   }
 </style>
 {% endblock %}
