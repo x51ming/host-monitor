@@ -12,6 +12,7 @@ compile:
 import (
 	context "context"
 	"encoding/csv"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -76,6 +77,19 @@ var hostInfo HostInfo
 var Allowed *net.IPNet
 var err error
 
+func recovered_init() nvml.Return {
+	defer func() {
+		err := recover()
+		if err != nil {
+			log.Println(err)
+			hostInfo.Err = "!!!" + fmt.Sprintf("%s", err)
+		}
+	}()
+
+	ret := nvml.Init()
+	return ret
+}
+
 func main() {
 	// 初始化，读取环境变量
 	allowedIP := os.Getenv("GOHM_ALLOW")
@@ -90,15 +104,12 @@ func main() {
 
 	// 处理本机IP信息
 	if err := localIP(); err != nil {
-		log.Fatalln(err)
+		log.Println(err)
 	}
 
 	// 处理显卡相关信息
-	ret := nvml.Init()
-	if ret != nvml.SUCCESS {
-		log.Printf("Unable to initialize NVML: %v\n", nvml.ErrorString(ret))
-		hostInfo.Err = nvml.ErrorString(ret)
-	} else {
+	_ = recovered_init()
+	if hostInfo.Err == "" {
 
 		defer func() {
 			ret := nvml.Shutdown()
@@ -110,7 +121,7 @@ func main() {
 		count, ret := nvml.DeviceGetCount()
 		if ret != nvml.SUCCESS {
 			log.Printf("Unable to get device count: %v\n", nvml.ErrorString(ret))
-			hostInfo.Err = nvml.ErrorString(ret)
+			hostInfo.Err = "!!!" + nvml.ErrorString(ret)
 		} else {
 			devices = make([]nvml.Device, count)
 			hostInfo.Gpus = make([]*GPUInfo, count)
@@ -118,7 +129,7 @@ func main() {
 				devices[i], ret = nvml.DeviceGetHandleByIndex(i)
 				if ret != nvml.SUCCESS {
 					log.Printf("Unable to get device at index %d: %v", i, nvml.ErrorString(ret))
-					hostInfo.Err = nvml.ErrorString(ret)
+					hostInfo.Err = "!!!" + nvml.ErrorString(ret)
 					break
 				}
 			}
