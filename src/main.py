@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-from flask import Flask, render_template
+from flask import Flask, render_template, request, session, redirect
 from threading import Thread
 from flask import jsonify
+from datetime import timedelta
 import time
 from dataclasses import dataclass
 from typing import Dict, List
@@ -13,6 +14,21 @@ try:
 except Exception as e:
     print(e)
     servers = {"local": "127.0.0.1:9203"}
+
+try:
+    from settings import token as auth_token
+    print("auth token:", auth_token)
+except Exception as e:
+    print(e)
+    auth_token = "hello world"
+
+try:
+    from settings import secret as secret
+    print("secret:", secret)
+except Exception as e:
+    print(e)
+    import os
+    secret = os.urandom(24)
 ####################
 # global
 ####################
@@ -72,24 +88,45 @@ def get_data(name):
 
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = secret
+app.permanent_session_lifetime = timedelta(days=30)
 
 
 @app.route("/")
 def greet():
+    if session.get("auth", "") != "ok":
+        return redirect("/login")
     return render_template('all.html', servers=g.server_responses)
 
 
-@app.route("/hist")
-def greet1():
-    return jsonify(g.history_data_gpumem)
+# @app.route("/hist")
+# def greet1():
+#     return jsonify(g.history_data_gpumem)
 
 
 pickle_header = [("Content-Type", "application/octet-stream"),
                  ("Access-Control-Allow-Origin", "*")]
 
 
+@app.get("/login")
+def login1():
+    return render_template('login.html')
+
+
+@app.post("/login")
+def login2():
+    token = request.form["token"]
+    if token == auth_token:
+        session["auth"] = "ok"
+        session.permanent = True
+        return redirect("/")
+    return redirect("/login")
+
+
 @app.route("/pk")
 def greet2():
+    if session.get("auth", "") != "ok":
+        return redirect("/login")
     import hm_pb2
     obj = hm_pb2.HistMap(data={
         k: hm_pb2.HistResp(
@@ -99,7 +136,7 @@ def greet2():
     return base64.b64encode(obj), 200
 
 
-def filter_len(gg:GlobalState, max_len = 6 * 60 * 24 * 10):
+def filter_len(gg: GlobalState, max_len=6 * 60 * 24 * 10):
     # 最长保留十天
     for name in gg.server_names:
         n = len(gg.timestamps.get(name, []))

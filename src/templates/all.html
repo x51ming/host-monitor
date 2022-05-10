@@ -34,12 +34,21 @@
 <div class="panel {% if v['ip'] %}panel-success{% else %}panel-danger{% endif %}">
   <div class="panel-heading">
     <h1 class="panel-title">
-      <b>{{k}}</b> (IP: {{ v["ip"] }})
+      <b>{{k}}</b> (IP: {% if v['ip'] %}{{v['ip']}}{% else %}Down{% endif %})
     </h1>
   </div>
   <div class="panel-body">
     {% for disk in v['disks']%}
-    <div style="width:525px;height:8px;margin-bottom:3em; background-color: #ddd;border-radius: 4px;">
+    <div class="col-md-4">
+    <div class="progress" style="margin-bottom:0px;">
+      <div class="progress-bar" role="progressbar" aria-valuenow="70"
+      aria-valuemin="0" aria-valuemax="100" style="width:{{'%.4f' % (disk['used'] / (disk['total']+1) * 100)}}%">
+      </div>
+    </div>
+    <pre>{{ '%10s @ %-10s %.1f /%.1f GiB (%5.2f%%)' %(disk['device'],disk['mount'],disk['used'] / 2**30, disk['total'] / 2**30,
+      disk['used'] / (disk['total']+1) * 100) }}</pre>
+    </div>
+    <!-- <div style="width:525px;height:8px;margin-bottom:3em; background-color: #ddd;border-radius: 4px;">
       <div
         style="color: white;height:100%; border-radius: 4px; text-align: center; background-color: #4CAF50; width: {{'%.4f' % (disk['used'] / (disk['total']+1) * 100)}}%;">
         &nbsp;</div>
@@ -47,7 +56,9 @@
         <pre>{{ '%15s @ %-15s %7.1f /%7.1f GiB (%5.2f%%)' %(disk['device'],disk['mount'],disk['used'] / 2**30, disk['total'] / 2**30,
             disk['used'] / (disk['total']+1) * 100) }}</pre>
       </div>
-    </div>
+    </div> -->
+
+
     {% endfor %}
   </div>
   <table class="table">

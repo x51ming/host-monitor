@@ -19,10 +19,15 @@
 
 # settings.py
 
-- 导出一个字典，形如
+- 形如
 
 ```python
+# 要监控的服务器上部署的后端监听的地址
 servers = {"local": "127.0.0.1:9203"}
+# flask用于加密cookie等操作的secret
+secret = "asdjfoihasidhfu"
+# 简单登录用的token
+token = "123456"
 ```
 
 # 一些说明
@@ -124,3 +129,11 @@ service History {
     rpc GetHistory (HistReq) returns (HistResp) {}
 }
 ```
+
+# 开发环境所需依赖
+
+- golang 1.17+
+- github.com/golang/protobuf/protoc-gen-go
+- python 3.7+
+- python: flask grpcio grpcio-tools
+- protobuf编译器: protoc（使用apt安装或github上下载可执行文件）
