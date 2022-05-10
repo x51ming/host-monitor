@@ -16,5 +16,6 @@
 !src/templates
 !src/templates/*
 
+!deploy_binary_and_test_run.sh
 
 
