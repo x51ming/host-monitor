@@ -83,7 +83,7 @@ def get_data(name):
 
             return response, name
     except Exception as e:
-        # print(e)
+        print(name, str(e).replace("\n",";"))
         return hm_pb2.HostInfo(id=name, err=str(e)), name
 
 

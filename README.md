@@ -25,12 +25,15 @@
 
 - 逐个在要部署的机器上，使用`sudo crontab -e`添加如下的一行，请不要直接修改`crontab`文件，而是使用`crontab`命令
 ```
-@reboot GOHM_ADDR="<PLEASE CHANGE>" GOHM_ALLOW="<PLEASE CHANGE>" <PATH TO HOST-MONOTIR>
+*/5 * * * * GOHM_ADDR=0.0.0.0:9203 GOHM_ALLOW=<PLEASE CHANGE> run-one <PATH-TO-HOST-MONITOR>
 ```
 
 - 系统初始化方式：`SysV init`（早期） --> `UpStart`（过渡） --> `systemd`（目前主流）
   
 - 通过`sudo stat /proc/1/exe | grep File:`可以查看系统的初始化方式，有少部分机器仍是`SysV init`，大部分机器是`systemd`，难以一致地配置`host-monitor`的自启动，所以采用了定时任务的方式实现自动运行
+
+- 依赖于工具run-one, 防止重复运行
+
 # settings.py
 
 - 形如
