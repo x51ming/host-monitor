@@ -1,0 +1,148 @@
+<!doctype html>
+<html>
+
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+        integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <script src="./static/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
+        integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+        crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"
+        integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
+        crossorigin="anonymous"></script>
+    <title>注释编辑</title>
+</head>
+
+<body>
+    <div>
+        <div class="col-md-6 col-sm-12 col-xs-12">
+            <div class="panel panel-default">
+                <div>
+                    <h3>注释编辑</h3>
+                    <h4><a href="/">返回主页</a></h4>
+                </div>
+
+                <div>
+                    <div>
+                        <table class="table table-striped table-bordered table-hover" id="maintab">
+                            <thead>
+                                <tr>
+                                    {% for i in labels %}
+                                    <td>{{ i }}</td>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for i in content %}
+                                <tr>
+                                    {% for j in i %}
+                                    <td>{{ j }}</td>
+                                    {% endfor %}
+
+                                    <td><input type="button" value="编辑"></td>
+                                    <td><input type="submit" value="提交"></td>
+                                    <td><input type="submit" value="移除"></td>
+                                </tr>
+                                {% endfor %}
+
+                                <tr>
+                                    <td><input type="text" value="" /></td>
+                                    <td><input type="text" value="" /></td>
+                                    <td><input type="text" value="" /></td>
+                                    <td><input type="submit" value="新增"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <script>
+                            (function () {
+                                // <!-- 定义属于是 button的按钮在点击后，产生下面的function功能-->
+                                $('input[type="button"]').on('click', function () {
+                                    // <!--获取当前事件，并进行当前按钮的状态，如果是编辑状态，就进行将每个单元格设置成可输入状态-->
+                                    var $this = $(this),
+                                        edit_status = $this.attr('edit_status'),
+                                        status_value = edit_status && 1 == edit_status ? 0 : 1,
+                                        $td_arr = $this.parent().prev('td');
+                                    $this.val(1 == status_value ? 'OK' : '编辑').attr('edit_status', status_value);
+                                    //  <!--如果单元格是可编辑状态，获取每列元素的值，并在最后html表格上进行展示-->
+                                    $.each($td_arr, function () {
+                                        var $td = $(this);
+                                        if (1 == status_value) {
+                                            $td.html('<input type="text" value="' + $td.html() + '">');
+                                            // <!--如果按钮状态是完成状态，直接展示单元内的值-->
+                                        } else if (0 == status_value) {
+                                            $td.html($td.find('input[type=text]').val());
+                                        }
+                                    });
+                                });
+                            })();
+
+
+                            (function () {
+                                //<!--定义属性是submit的按钮在点击后，产生下面的function功能-->
+                                $('input[type="submit"]').on('click', function () {
+                                    //  <!--获取当前行的id -->
+                                    var td = event.srcElement.parentElement;
+                                    var rownum = td.parentElement.rowIndex;
+                                    //<!--获取html表格元素 -->
+                                    var tab = document.getElementById("maintab");
+                                    //<!--将每个单元格元素进行取值，并以字典形式传给后台 -->
+
+                                    var data;
+
+                                    if (this.value == "新增") data = {
+                                        "user": tab.rows[rownum].cells[0].firstChild.value,
+                                        "host": tab.rows[rownum].cells[1].firstChild.value,
+                                        "note": tab.rows[rownum].cells[2].firstChild.value,
+                                    }; else data = {
+                                        "user": tab.rows[rownum].cells[0].innerHTML,
+                                        "host": tab.rows[rownum].cells[1].innerHTML,
+                                        "note": tab.rows[rownum].cells[2].innerHTML,
+                                    };
+
+
+                                    if (this.value === "提交" || this.value === "新增") {
+                                        $.ajax({
+                                            type: "get",
+                                            url: "/edit",
+                                            data: data,
+                                            dataType: "json"
+                                        }).always((d) => { alert("提交成功"); location.reload() });
+                                    } else if (this.value === "移除") {
+                                        $.ajax({
+                                            type: "get",
+                                            url: "/rm",
+                                            data: data,
+                                            dataType: "json"
+                                        }).always((d) => { alert("删除完成"); location.reload() });
+                                    }
+                                });
+
+                            })();
+                        </script>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4>说明</h4>
+                <p>1. 此页面用于注释服务器使用情况，请使用者或管理员自行编辑，不专门进行身份认证</p>
+                <p>2. 以下字符不合法，后端会过滤，请不要出现这些字符
+                    <pre>/\;<>%&</pre>
+                </p>
+            </div>
+
+        </div>
+
+    </div>
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+
+</body>
+
+</html>

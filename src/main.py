@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import re
 import click
 from flask import Flask, render_template, request, session, redirect
 from threading import Thread
@@ -9,6 +10,11 @@ from dataclasses import dataclass
 from typing import Dict, List
 import hm_pb2
 import base64
+import dbm
+DATABASE = dbm.open("host.db", "c")
+for k in DATABASE:
+    print(k.decode("utf8"), DATABASE[k].decode("utf8"))
+
 try:
     from settings import servers as servers
     print(servers)
@@ -99,14 +105,28 @@ def parse_exp(data):
     if data == 1:
         return "Forever"
     t = time.localtime(data)
-    if  data < time.time() :
+    if data < time.time():
         return "Expired"
     styled = time.strftime("%Y-%m-%d", t)
     return styled
 
 
-app.add_template_filter(parse_exp)
+def get_note(user, host):
+    # print(user, host)
+    return DATABASE.get(f"{user}@{host}", default=b"").decode("utf8")
 
+
+def append(l, v):
+    if v in l:
+        return ""
+    l.append(v)
+    return ""
+
+
+app.add_template_filter(append)
+app.add_template_filter(parse_exp)
+app.add_template_filter(get_note)
+app.add_template_filter(len, "get_len")
 
 @app.route("/")
 def greet():
@@ -150,6 +170,55 @@ def greet2():
             v=g.history_data_gpumem[k][::12]) for k in g.history_data_gpumem
     }).SerializeToString()
     return base64.b64encode(obj), 200
+
+
+@app.get("/table")
+def greet3():
+    if session.get("auth", "") != "ok":
+        return redirect("/login")
+    return render_template("table.html",
+                           labels=["用户", "服务器", "说明"],
+                           content=[(
+                               k[:k.index(b"@")].decode("utf8"),
+                               k[k.index(b"@")+1:].decode("utf8"),
+                               DATABASE[k].decode("utf8")) for k in DATABASE])
+
+
+illegal = re.compile("[\\\\%</>&;]")
+
+
+def data_filter(s: str):
+    s = illegal.sub(s, "")
+    return s
+
+
+@app.get("/edit")
+def greet4():
+    if session.get("auth", "") != "ok":
+        return redirect("/login")
+    data = request.args
+    if data:
+        user = data.get("user", "")
+        host = data.get("host", "")
+        note = data.get("note", "")
+        if user and host:
+            DATABASE[f"{user}@{host}"] = note
+            return "ok", 200
+    return "fail", 400
+
+
+@app.get("/rm")
+def greet5():
+    if session.get("auth", "") != "ok":
+        return redirect("/login")
+    data = request.args
+    if data:
+        user = data.get("user", "")
+        host = data.get("host", "")
+        if user and host:
+            DATABASE.pop(f"{user}@{host}")
+            return "ok", 200
+    return "fail", 400
 
 
 def filter_len(gg: GlobalState, max_len=6 * 60 * 24 * 10):
@@ -197,9 +266,9 @@ def update():
         time.sleep(10)
 
 
-@click.command()
-@click.option("--addr", default="0.0.0.0")
-@click.option("--port", default=5000, type=int)
+@ click.command()
+@ click.option("--addr", default="0.0.0.0")
+@ click.option("--port", default=5000, type=int)
 def entry(addr, port):
     Thread(target=update).start()
     app.run(addr, port, debug=False)

@@ -1,4 +1,5 @@
 #!/bin/bash
+make -C src install
 trap "kill 0" SIGINT
 
 export GOHM_ADDR=0.0.0.0:7203

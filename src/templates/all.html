@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% macro gpuline(gpu,host) -%}
+{% macro gpuline(gpu,host,users, first, nrows) -%}
 <td>
   <pre>{{gpu['name']}}</pre>
   <script> document.getElementById("host_{{host}}").setAttribute("gid", "{{gpu['name']}}");
@@ -26,13 +26,22 @@
 <td>
   {% for p in gpu["procs"] %}
   {{ p["username"] }}({{'%.0f' % (p["mem"] / 2**20)}}MiB,{{ p["expiration"] | parse_exp }})&nbsp;
+  {{ users | append(p["username"]) }}
   {% endfor %}
 </td>
+{% if first %}
+<td rowspan="{{nrows}}">
+  {% for u in users %}
+  <pre style="white-space: pre-wrap; word-wrap:break-word;">用户{{u}}: {{ u | get_note(host) }}</pre>
+  {% endfor %}
+</td>
+{% endif %}
 <td>
   <div class="dataview" dataset="{{ host }}_{{ gpu['id'] }}"></div>
 </td>
 {%- endmacro %}
 {% macro showone(k,v) -%}
+{% set users=[] %}
 <div class="panel {% if v['ip'] %}panel-success{% else %}panel-danger{% endif %}" id="host_{{ v['id'] }}">
   <div class="panel-heading">
     <h1 class="panel-title">
@@ -71,11 +80,12 @@
       <th class="col-md-1">风扇</th>
       <th class="col-md-2">显存占用</th>
       <th class="col-md-2">进程情况</th>
-      <th class="col-md-4">历史占用情况</th>
+      <th class="col-md-2">注释</th>
+      <th class="col-md-2">历史占用情况</th>
     </tr>
     {% for gpu in v["gpus"] %}
     <tr>
-      {{ gpuline(gpu, v["id"]) }}
+      {{ gpuline(gpu, v["id"], users, loop.first, v["gpus"] | get_len ) }}
     </tr>
     {% endfor %}
   </table>
@@ -83,20 +93,19 @@
 {%- endmacro %}
 {% block title %}All Hosts{% endblock %}
 {% block content %}
-<div id="notice" class="col-md-2"
-style="position:fixed; bottom:0px; right:0px;"
-><h2>
-提醒：部分1卡/2卡/3卡机器近日将维护，进行合并或拆解！
- </h2></div>
+<div id="notice" class="col-md-2" style="position:fixed; bottom:0px; right:0px;">
+  <h2><a href="/table">编辑注释</a></h2>
+  <h2>
+    提醒：部分1卡/2卡/3卡机器近日将维护，进行合并或拆解！
+  </h2>
+</div>
 
 <div class="col-md-10">
   {% for k,v in servers.items() %}
   {{ showone(k, v) }}
   {% endfor %}
 </div>
-<div class="col-md-2" id="CK"
-style="position:fixed; top:0px; right:0px;"
-></div>
+<div class="col-md-2" id="CK" style="position:fixed; top:0px; right:0px;"></div>
 <!-- <div id="main" class="col-md-3" style="height: 400px;"></div> -->
 <script>
   function buildOpt(dateList, valueList) {
@@ -225,12 +234,12 @@ style="position:fixed; top:0px; right:0px;"
         var hash = 0, i, chr;
         if (this.length === 0) return hash;
         for (i = 0; i < this.length; i++) {
-            chr = this.charCodeAt(i);
-            hash = ((hash << 5) - hash) + chr;
-            hash |= 0; // Convert to 32bit integer
+          chr = this.charCodeAt(i);
+          hash = ((hash << 5) - hash) + chr;
+          hash |= 0; // Convert to 32bit integer
         }
         return (hash >>> 0).toString(16);
-    };
+      };
 
       function unique(arr) {
         return Array.from(new Set(arr))
@@ -238,7 +247,7 @@ style="position:fixed; top:0px; right:0px;"
 
       window.gpu_all = unique(window.gpu_all);
       var ck = document.getElementById("CK");
-      window.gpu_all.forEach((v,i,a)=>{
+      window.gpu_all.forEach((v, i, a) => {
         create_ck(hashFunc(v), v, ck);
       })
 
@@ -325,7 +334,7 @@ style="position:fixed; top:0px; right:0px;"
     group.appendChild(myText);
     parent.appendChild(group);
 
-}
+  }
   window.gpu_all = new Array();
 </script>
 {% endblock %}
