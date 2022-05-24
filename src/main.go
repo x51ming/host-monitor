@@ -13,17 +13,22 @@ import (
 	context "context"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/shirou/gopsutil/process"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
+
+var gShadow = &Shadow{}
 
 type server struct{}
 
@@ -61,7 +66,9 @@ func getDevice(device nvml.Device) *GPUInfo {
 				Mem: p.UsedGpuMemory,
 			}
 			if ps, err := process.NewProcess(int32(p.Pid)); err == nil {
-				thisInfo.Username, _ = ps.Username()
+				if thisInfo.Username, err = ps.Username(); err == nil {
+					thisInfo.Expiration = gShadow.Query(thisInfo.Username)
+				}
 				thisInfo.Basename, _ = ps.Name()
 			}
 			info.Procs = append(info.Procs, thisInfo)
@@ -91,6 +98,12 @@ func recovered_init() nvml.Return {
 }
 
 func main() {
+	go func() {
+		for {
+			gShadow.Flush()
+			time.Sleep(time.Second * 20)
+		}
+	}()
 	// 初始化，读取环境变量
 	allowedIP := os.Getenv("GOHM_ALLOW")
 	if allowedIP == "" {
@@ -270,4 +283,48 @@ func UpdateDiskInfo() {
 			Used:   d.Used,
 		})
 	}
+}
+
+type Shadow struct {
+	users map[string]uint64
+}
+
+func (s *Shadow) Flush() {
+	s.users = make(map[string]uint64, 0)
+	fd, err := os.Open("/etc/shadow")
+	if err != nil {
+		return
+	}
+	defer fd.Close()
+	reader := csv.NewReader(fd)
+	reader.Comma = ':'
+	reader.FieldsPerRecord = 9
+	reader.Comment = '#'
+
+	for {
+		line, err := reader.Read()
+		// println(len(line), err)
+		if err == io.EOF {
+			break
+		}
+		if err == nil {
+			exp := line[7]
+			if exp == "" {
+				s.users[line[0]] = 1
+			} else {
+				v, err := strconv.ParseUint(exp, 10, 64)
+				if err == nil {
+					v *= 86400
+					s.users[line[0]] = v
+				}
+			}
+		}
+	}
+}
+
+func (s *Shadow) Query(u string) uint64 {
+	if v, ok := s.users[u]; ok {
+		return v
+	}
+	return 0
 }

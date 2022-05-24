@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import click
 from flask import Flask, render_template, request, session, redirect
 from threading import Thread
 from flask import jsonify
@@ -13,14 +14,14 @@ try:
     print(servers)
 except Exception as e:
     print(e)
-    servers = {"local": "127.0.0.1:9203"}
+    servers = {"local": "127.0.0.1:7203"}
 
 try:
     from settings import token as auth_token
     print("auth token:", auth_token)
 except Exception as e:
     print(e)
-    auth_token = "hello world"
+    auth_token = "test"
 
 try:
     from settings import secret as secret
@@ -83,13 +84,28 @@ def get_data(name):
 
             return response, name
     except Exception as e:
-        print(name, str(e).replace("\n",";"))
+        print(name, str(e).replace("\n", ";"))
         return hm_pb2.HostInfo(id=name, err=str(e)), name
 
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secret
 app.permanent_session_lifetime = timedelta(days=30)
+
+
+def parse_exp(data):
+    if data == 0:
+        return "Unkown"
+    if data == 1:
+        return "Forever"
+    t = time.localtime(data)
+    if  data < time.time() :
+        return "Expired"
+    styled = time.strftime("%Y-%m-%d", t)
+    return styled
+
+
+app.add_template_filter(parse_exp)
 
 
 @app.route("/")
@@ -130,8 +146,8 @@ def greet2():
     import hm_pb2
     obj = hm_pb2.HistMap(data={
         k: hm_pb2.HistResp(
-            t=g.timestamps[k],
-            v=g.history_data_gpumem[k]) for k in g.history_data_gpumem
+            t=g.timestamps[k][::12],
+            v=g.history_data_gpumem[k][::12]) for k in g.history_data_gpumem
     }).SerializeToString()
     return base64.b64encode(obj), 200
 
@@ -181,7 +197,13 @@ def update():
         time.sleep(10)
 
 
-if __name__ == "__main__":
-    # Thread(target=server.serve).start()
+@click.command()
+@click.option("--addr", default="0.0.0.0")
+@click.option("--port", default=5000, type=int)
+def entry(addr, port):
     Thread(target=update).start()
-    app.run("0.0.0.0", 5000, debug=False)
+    app.run(addr, port, debug=False)
+
+
+if __name__ == "__main__":
+    entry()

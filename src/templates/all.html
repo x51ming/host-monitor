@@ -2,6 +2,8 @@
 {% macro gpuline(gpu,host) -%}
 <td>
   <pre>{{gpu['name']}}</pre>
+  <script> document.getElementById("host_{{host}}").setAttribute("gid", "{{gpu['name']}}");
+    gpu_all.push("{{gpu['name']}}");</script>
 </td>
 <td>
   <pre>{{ "%3d" % gpu["utilization"] }}%</pre>
@@ -23,7 +25,7 @@
 </td>
 <td>
   {% for p in gpu["procs"] %}
-  {{ p["username"] }}({{'%.0f' % (p["mem"] / 2**20)}}MiB)&nbsp;
+  {{ p["username"] }}({{'%.0f' % (p["mem"] / 2**20)}}MiB,{{ p["expiration"] | parse_exp }})&nbsp;
   {% endfor %}
 </td>
 <td>
@@ -31,7 +33,7 @@
 </td>
 {%- endmacro %}
 {% macro showone(k,v) -%}
-<div class="panel {% if v['ip'] %}panel-success{% else %}panel-danger{% endif %}">
+<div class="panel {% if v['ip'] %}panel-success{% else %}panel-danger{% endif %}" id="host_{{ v['id'] }}">
   <div class="panel-heading">
     <h1 class="panel-title">
       <b>{{k}}</b> (IP: {% if v['ip'] %}{{v['ip']}}{% else %}Down{% endif %})
@@ -40,12 +42,12 @@
   <div class="panel-body">
     {% for disk in v['disks']%}
     <div class="col-md-4">
-    <div class="progress" style="margin-bottom:0px;">
-      <div class="progress-bar" role="progressbar" aria-valuenow="70"
-      aria-valuemin="0" aria-valuemax="100" style="width:{{'%.4f' % (disk['used'] / (disk['total']+1) * 100)}}%">
+      <div class="progress" style="margin-bottom:0px;">
+        <div class="progress-bar" role="progressbar" aria-valuenow="70" aria-valuemin="0" aria-valuemax="100"
+          style="width:{{'%.4f' % (disk['used'] / (disk['total']+1) * 100)}}%">
+        </div>
       </div>
-    </div>
-    <pre>{{ '%10s @ %-10s %.1f /%.1f GiB (%5.2f%%)' %(disk['device'],disk['mount'],disk['used'] / 2**30, disk['total'] / 2**30,
+      <pre>{{ '%10s @ %-10s %.1f /%.1f GiB (%5.2f%%)' %(disk['device'],disk['mount'],disk['used'] / 2**30, disk['total'] / 2**30,
       disk['used'] / (disk['total']+1) * 100) }}</pre>
     </div>
     <!-- <div style="width:525px;height:8px;margin-bottom:3em; background-color: #ddd;border-radius: 4px;">
@@ -81,11 +83,20 @@
 {%- endmacro %}
 {% block title %}All Hosts{% endblock %}
 {% block content %}
+<div id="notice" class="col-md-2"
+style="position:fixed; bottom:0px; right:0px;"
+><h2>
+提醒：部分1卡/2卡/3卡机器近日将维护，进行合并或拆解！
+ </h2></div>
+
 <div class="col-md-10">
   {% for k,v in servers.items() %}
   {{ showone(k, v) }}
   {% endfor %}
 </div>
+<div class="col-md-2" id="CK"
+style="position:fixed; top:0px; right:0px;"
+></div>
 <!-- <div id="main" class="col-md-3" style="height: 400px;"></div> -->
 <script>
   function buildOpt(dateList, valueList) {
@@ -210,6 +221,27 @@
 
   $(document).ready(
     async () => {
+      function hashFunc() {
+        var hash = 0, i, chr;
+        if (this.length === 0) return hash;
+        for (i = 0; i < this.length; i++) {
+            chr = this.charCodeAt(i);
+            hash = ((hash << 5) - hash) + chr;
+            hash |= 0; // Convert to 32bit integer
+        }
+        return (hash >>> 0).toString(16);
+    };
+
+      function unique(arr) {
+        return Array.from(new Set(arr))
+      }
+
+      window.gpu_all = unique(window.gpu_all);
+      var ck = document.getElementById("CK");
+      window.gpu_all.forEach((v,i,a)=>{
+        create_ck(hashFunc(v), v, ck);
+      })
+
       var allData = await $.ajax("/pk");
       rawObj = proto.gpu.HistMap.deserializeBinary(allData);
       window.rawObj = rawObj;
@@ -265,4 +297,35 @@
     background-color: #4CAF50;
   }
 </style>
+<script>
+  function create_ck(id, msg, parent) {
+
+
+    var group = document.createElement("div");
+    group.classList.add("form-check");
+
+    var oCheckbox = document.createElement("input");
+    oCheckbox.classList.add("form-check-input");
+    oCheckbox.setAttribute("type", "checkbox");
+    oCheckbox.setAttribute("gid", msg);
+    oCheckbox.checked = true;
+    oCheckbox.onclick = function (env) {
+      cked = env.target.checked;
+      gid = env.target.getAttribute("gid");
+      if (cked) $("div[gid='" + gid + "']").show();
+      else $("div[gid='" + gid + "']").hide();
+    }
+
+
+    var myText = document.createElement("label");
+    myText.classList.add("form-check-label");
+    myText.innerText = msg;
+
+    group.appendChild(oCheckbox);
+    group.appendChild(myText);
+    parent.appendChild(group);
+
+}
+  window.gpu_all = new Array();
+</script>
 {% endblock %}

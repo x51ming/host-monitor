@@ -17,6 +17,7 @@
 
 - 将整个`bin`目录拷贝到管理主机上，在管理主机上运行`main.py`，依赖库`grpcio grpcio-tools flask`，需要在`bin`目录下创建`settings.py`
 
+- 为了实现非管理员读取用户过期时间的功能，需要将每个被监控主机上运行`hmonitor`的用户，加入到`shadow`组中，该组对`/etc/shadow`和`/etc/gshadow`拥有只读权限(当然实际上是通过crontab部署的，所以自动有root权限，这里说的是本地测试，或者专门创建用户运行`host-monitor`的情况)
 # 自动运行
 
 - 目前测试发现所有机器都有cron，且都处于active状态
@@ -69,6 +70,7 @@ token = "123456"
 
 - 前端、前后端通信：flask + protobuf + base64
 
+- 读取用户账号过期时间：解析/etc/shadow，该文件`默认`属于`shadow`用户组，所以通过将后端用户加入到shadow组中即可，shadow组对其具有只读权限，这种方式操作相对安全
 
 # 效果
 
