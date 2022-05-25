@@ -15,6 +15,10 @@ DATABASE = dbm.open("host.db", "c")
 for k in DATABASE:
     print(k.decode("utf8"), DATABASE[k].decode("utf8"))
 
+KVSTORE = dbm.open("kvstore.db", "c")
+for k in KVSTORE:
+    print(k.decode("utf8"), KVSTORE[k].decode("utf8"))
+    
 try:
     from settings import servers as servers
     print(servers)
@@ -37,7 +41,7 @@ except Exception as e:
     import os
     secret = os.urandom(24)
 ####################
-# global
+
 ####################
 
 
@@ -94,6 +98,7 @@ def get_data(name):
         return hm_pb2.HostInfo(id=name, err=str(e)), name
 
 
+#######################
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secret
 app.permanent_session_lifetime = timedelta(days=30)
@@ -123,25 +128,23 @@ def append(l, v):
     return ""
 
 
+def query(k):
+    return KVSTORE.get(k, default=b"").decode("utf8")
+
+
 app.add_template_filter(append)
 app.add_template_filter(parse_exp)
 app.add_template_filter(get_note)
 app.add_template_filter(len, "get_len")
+app.add_template_filter(query)
 
+
+###########################
 @app.route("/")
 def greet():
     if session.get("auth", "") != "ok":
         return redirect("/login")
-    return render_template('all.html', servers=g.server_responses)
-
-
-# @app.route("/hist")
-# def greet1():
-#     return jsonify(g.history_data_gpumem)
-
-
-pickle_header = [("Content-Type", "application/octet-stream"),
-                 ("Access-Control-Allow-Origin", "*")]
+    return render_template('all.html', servers=g.server_responses, notice=query("notice"))
 
 
 @app.get("/login")
@@ -184,11 +187,31 @@ def greet3():
                                DATABASE[k].decode("utf8")) for k in DATABASE])
 
 
+ALLOWED_KEYS = {"notice"}
+
+
+@app.post("/set")
+def greet6():
+    if session.get("auth", "") != "ok":
+        return redirect("/login")
+    key = request.args.get("key", "notice")
+    if key not in ALLOWED_KEYS:
+        return "not allowed", 400
+    redirect_ = request.args.get("redirect", "/")
+    data = request.form.get("value", "")
+    # data = data_filter(data)
+    KVSTORE[key] = data
+    # for k in KVSTORE:
+    # print(KVSTORE[k])
+    print("[ED1]", request.remote_addr, key, data, "<<")
+    return redirect(redirect_)
+
+
 illegal = re.compile("[\\\\%</>&;]")
 
 
 def data_filter(s: str):
-    s = illegal.sub(s, "")
+    s = illegal.sub("", s)
     return s
 
 
@@ -198,11 +221,12 @@ def greet4():
         return redirect("/login")
     data = request.args
     if data:
-        user = data.get("user", "")
-        host = data.get("host", "")
-        note = data.get("note", "")
+        user = data_filter(data.get("user", ""))
+        host = data_filter(data.get("host", ""))
+        note = data_filter(data.get("note", ""))
         if user and host:
             DATABASE[f"{user}@{host}"] = note
+            print("[ED0]", request.remote_addr, user, host, note, "<<")
             return "ok", 200
     return "fail", 400
 
@@ -219,6 +243,12 @@ def greet5():
             DATABASE.pop(f"{user}@{host}")
             return "ok", 200
     return "fail", 400
+
+
+@app.get("/notice")
+def greet7():
+    return render_template("notice.html", notice=query("notice"))
+####################
 
 
 def filter_len(gg: GlobalState, max_len=6 * 60 * 24 * 10):
