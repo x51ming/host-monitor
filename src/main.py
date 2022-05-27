@@ -13,12 +13,19 @@ import base64
 import dbm
 DATABASE = dbm.open("host.db", "c")
 for k in DATABASE:
-    print(k.decode("utf8"), DATABASE[k].decode("utf8"))
+    try:
+        print(k.decode("utf8"), DATABASE[k].decode("utf8"))
+    except:
+        print(k, DATABASE[k])
 
 KVSTORE = dbm.open("kvstore.db", "c")
 for k in KVSTORE:
-    print(k.decode("utf8"), KVSTORE[k].decode("utf8"))
-    
+    try:
+        print(k.decode("utf8"), KVSTORE[k].decode("utf8"))
+    except:
+        print(k, KVSTORE[k])
+
+
 try:
     from settings import servers as servers
     print(servers)
@@ -106,7 +113,7 @@ app.permanent_session_lifetime = timedelta(days=30)
 
 def parse_exp(data):
     if data == 0:
-        return "Unkown"
+        return "Unknown"
     if data == 1:
         return "Forever"
     t = time.localtime(data)
@@ -129,7 +136,10 @@ def append(l, v):
 
 
 def query(k):
-    return KVSTORE.get(k, default=b"").decode("utf8")
+    try:
+        return KVSTORE.get(k, default=b"").decode("utf8")
+    except:
+        return KVSTORE.get(k, default=b"")
 
 
 app.add_template_filter(append)
@@ -200,7 +210,10 @@ def greet6():
     redirect_ = request.args.get("redirect", "/")
     data = request.form.get("value", "")
     # data = data_filter(data)
-    KVSTORE[key] = data
+    try:
+        KVSTORE[key.encode("utf8")] = data.encode("utf8")
+    except:
+        KVSTORE[key] = data
     # for k in KVSTORE:
     # print(KVSTORE[k])
     print("[ED1]", request.remote_addr, key, data, "<<")
@@ -225,7 +238,11 @@ def greet4():
         host = data_filter(data.get("host", ""))
         note = data_filter(data.get("note", ""))
         if user and host:
-            DATABASE[f"{user}@{host}"] = note
+            try:
+                DATABASE[f"{user}@{host}".encode("utf8")] = note.encode("utf8")
+            except:
+                DATABASE[f"{user}@{host}"] = note
+
             print("[ED0]", request.remote_addr, user, host, note, "<<")
             return "ok", 200
     return "fail", 400

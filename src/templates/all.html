@@ -25,8 +25,10 @@
 </td>
 <td>
   {% for p in gpu["procs"] %}
+  {% if p["expiration"]!=0 %}
   {{ p["username"] }}({{'%.0f' % (p["mem"] / 2**20)}}MiB,{{ p["expiration"] | parse_exp }})&nbsp;
   {{ users | append(p["username"]) }}
+  {% endif %}
   {% endfor %}
 </td>
 {% if first %}
@@ -94,7 +96,7 @@
 {% block title %}All Hosts{% endblock %}
 {% block content %}
 <div id="notice" class="col-md-2" style="position:fixed; bottom:0px; right:0px;">
-  <h2><a href="/table">编辑注释</a><a href="/notice">编辑提醒</a></h2>
+  <h2><button><a href="/table">编辑注释</a></button><button><a href="/notice">编辑提醒</a></button></h2>
   <pre style="white-space: pre-wrap; word-wrap:break-word;">提醒：{{ notice }}</pre>
 </div>
 
